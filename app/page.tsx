@@ -1,14 +1,5 @@
 "use client";
 
-export const metadata = {
-title: "chekr",
-icons: {
-icon: "/favicon.ico",
-shortcut: "/favicon.ico",
-apple: "/apple-touch-icon.png",
-},
-};
-
 import { useEffect, useState } from "react";
 
 function isRealIP(value: string) {
