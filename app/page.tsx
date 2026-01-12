@@ -1,4 +1,14 @@
-"use client";"use client";
+"use client";
+
+export const metadata = {
+title: "chekr",
+icons: {
+icon: "/favicon.ico",
+shortcut: "/favicon.ico",
+apple: "/apple-touch-icon.png",
+},
+};
+
 import { useEffect, useState } from "react";
 
 function isRealIP(value: string) {
@@ -67,15 +77,15 @@ export default function PrivacyCheckPage() {
   if (ipv6Detected && !isVPNLikely) score -= 20;
 
   let verdict = "SECURE";
-  if (score < 80) verdict = "PARTIALLY LEAKING";
-  if (score < 50) verdict = "LEAKING / UNPROTECTED";
+  if (score < 80) verdict = "PARTIALLY OPEN";
+  if (score < 50) verdict = "OPEN / UNPROTECTED";
 
   const verdictColor = score >= 80 ? "text-green-400" : score >= 50 ? "text-yellow-400" : "text-red-500";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black text-gray-100 p-10">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Privacy & VPN Leak Test</h1>
+        <h1 className="text-4xl font-bold tracking-tight mb-2">Privacy & VPN</h1>
         <p className="text-gray-400 mb-8">Instant analysis of VPN status, IP leaks, and browser privacy risks.</p>
 
         <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6 shadow-xl">
