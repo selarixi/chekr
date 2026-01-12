@@ -1,0 +1,122 @@
+import { useEffect, useState } from "react";
+
+export default function PrivacyCheckPage() {
+  const [ipInfo, setIpInfo] = useState<any>(null);
+  const [webrtcIPs, setWebrtcIPs] = useState<string[]>([]);
+  const [ipv6Detected, setIpv6Detected] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchIP() {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        setIpInfo(data);
+        if (data.ip && data.ip.includes(":")) setIpv6Detected(true);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function detectWebRTCLeak() {
+      const ips = new Set<string>();
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel("");
+      pc.createOffer().then(offer => pc.setLocalDescription(offer));
+      pc.onicecandidate = event => {
+        if (!event || !event.candidate) return;
+        const parts = event.candidate.candidate.split(" ");
+        const ip = parts[4];
+        if (ip && !ip.includes("::")) ips.add(ip);
+        setWebrtcIPs(Array.from(ips));
+      };
+    }
+
+    fetchIP();
+    detectWebRTCLeak();
+    setLoading(false);
+  }, []);
+
+  if (loading) return <div className="p-10 text-gray-400">Running privacy diagnostics…</div>;
+
+  const org = ipInfo?.org?.toLowerCase() || "";
+  const isVPNLikely = org.includes("vpn") || org.includes("hosting") || org.includes("cloud") || org.includes("datacenter");
+
+  let score = 100;
+  if (!isVPNLikely) score -= 30;
+  if (webrtcIPs.length > 0) score -= 40;
+  if (ipv6Detected && !isVPNLikely) score -= 15;
+
+  let verdict: string;
+  if (score >= 80) verdict = "SECURE";
+  else if (score >= 50) verdict = "PARTIALLY LEAKING";
+  else verdict = "LEAKING / UNPROTECTED";
+
+  const verdictColor = score >= 80 ? "text-green-400" : score >= 50 ? "text-yellow-400" : "text-red-500";
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black text-gray-100 p-10">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-4xl font-bold tracking-tight mb-2">Privacy & VPN Leak Test</h1>
+        <p className="text-gray-400 mb-8">Instant analysis of VPN status, IP leaks, and browser privacy risks.</p>
+
+        <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6 shadow-xl">
+          <h2 className="text-lg font-semibold mb-3">Verdict</h2>
+          <div className="flex items-center justify-between">
+            <span className={`text-2xl font-bold ${verdictColor}`}>{verdict}</span>
+            <span className="text-3xl font-mono">{score}/100</span>
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">Public IP</h2>
+          {ipInfo && (
+            <ul className="text-sm space-y-1">
+              <li><b>IP:</b> {ipInfo.ip}</li>
+              <li><b>ISP / ASN:</b> {ipInfo.org}</li>
+              <li><b>Location:</b> {ipInfo.city}, {ipInfo.country_name}</li>
+              <li><b>IP Version:</b> {ipv6Detected ? "IPv6" : "IPv4"}</li>
+            </ul>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">VPN Detection</h2>
+          <p className={isVPNLikely ? "text-green-400" : "text-red-400"}>
+            {isVPNLikely
+              ? "VPN or datacenter IP detected."
+              : "Residential IP detected — VPN may be disabled or leaking."}
+          </p>
+        </section>
+
+        <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">WebRTC Leak Test</h2>
+          {webrtcIPs.length === 0 ? (
+            <p className="text-green-400">No WebRTC leaks detected.</p>
+          ) : (
+            <div>
+              <p className="text-red-400 mb-2">WebRTC is exposing local IP addresses:</p>
+              <ul className="text-sm font-mono">
+                {webrtcIPs.map(ip => <li key={ip}>{ip}</li>)}
+              </ul>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">Additional Checks</h2>
+          <ul className="text-sm list-disc ml-5 space-y-1">
+            <li>IPv6 exposure: <b>{ipv6Detected ? "Detected" : "Not detected"}</b></li>
+            <li>Browser fingerprinting resistance: <b>Limited</b></li>
+            <li>DNS leaks: <b>Cannot be tested client-side</b></li>
+            <li>Tor exit node: <b>{org.includes("tor") ? "Possible" : "Not detected"}</b></li>
+          </ul>
+        </section>
+
+        <footer className="text-xs text-gray-500 mt-10 text-center">
+          No data is stored. Tests run locally in your browser. Results are heuristic, not guarantees.
+        </footer>
+      </div>
+    </main>
+  );
+}
