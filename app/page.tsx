@@ -1,10 +1,17 @@
-"use client";
+"use client";"use client";
 import { useEffect, useState } from "react";
+
+function isRealIP(value: string) {
+  // IPv4 or IPv6 only — exclude mDNS / .local / UUIDs
+  const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const ipv6 = /^[a-fA-F0-9:]+$/;
+  return ipv4.test(value) || ipv6.test(value);
+}
 
 export default function PrivacyCheckPage() {
   const [ipInfo, setIpInfo] = useState<any>(null);
   const [webrtcIPs, setWebrtcIPs] = useState<string[]>([]);
-  const [ipv6Detected, setIpv6Detected] = useState<boolean>(false);
+  const [ipv6Detected, setIpv6Detected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,11 +32,13 @@ export default function PrivacyCheckPage() {
       pc.createDataChannel("");
       pc.createOffer().then(offer => pc.setLocalDescription(offer));
       pc.onicecandidate = event => {
-        if (!event || !event.candidate) return;
+        if (!event?.candidate) return;
         const parts = event.candidate.candidate.split(" ");
-        const ip = parts[4];
-        if (ip && !ip.includes("::")) ips.add(ip);
-        setWebrtcIPs(Array.from(ips));
+        const candidate = parts[4];
+        if (candidate && isRealIP(candidate)) {
+          ips.add(candidate);
+          setWebrtcIPs(Array.from(ips));
+        }
       };
     }
 
@@ -40,18 +49,26 @@ export default function PrivacyCheckPage() {
 
   if (loading) return <div className="p-10 text-gray-400">Running privacy diagnostics…</div>;
 
-  const org = ipInfo?.org?.toLowerCase() || "";
-  const isVPNLikely = org.includes("vpn") || org.includes("hosting") || org.includes("cloud") || org.includes("datacenter");
+  const asn = ipInfo?.asn || "";
+  const org = (ipInfo?.org || "").toLowerCase();
+
+  // Heuristic: most VPNs use datacenter ASNs
+  const isDatacenterASN = asn && asn.startsWith("AS");
+
+  const isVPNLikely = isDatacenterASN ||
+    org.includes("vpn") ||
+    org.includes("hosting") ||
+    org.includes("cloud") ||
+    org.includes("datacenter");
 
   let score = 100;
-  if (!isVPNLikely) score -= 30;
+  if (!isVPNLikely) score -= 25;
   if (webrtcIPs.length > 0) score -= 40;
-  if (ipv6Detected && !isVPNLikely) score -= 15;
+  if (ipv6Detected && !isVPNLikely) score -= 20;
 
-  let verdict: string;
-  if (score >= 80) verdict = "SECURE";
-  else if (score >= 50) verdict = "PARTIALLY LEAKING";
-  else verdict = "LEAKING / UNPROTECTED";
+  let verdict = "SECURE";
+  if (score < 80) verdict = "PARTIALLY LEAKING";
+  if (score < 50) verdict = "LEAKING / UNPROTECTED";
 
   const verdictColor = score >= 80 ? "text-green-400" : score >= 50 ? "text-yellow-400" : "text-red-500";
 
@@ -74,7 +91,7 @@ export default function PrivacyCheckPage() {
           {ipInfo && (
             <ul className="text-sm space-y-1">
               <li><b>IP:</b> {ipInfo.ip}</li>
-              <li><b>ISP / ASN:</b> {ipInfo.org}</li>
+              <li><b>ISP / ASN:</b> {ipInfo.org} ({asn})</li>
               <li><b>Location:</b> {ipInfo.city}, {ipInfo.country_name}</li>
               <li><b>IP Version:</b> {ipv6Detected ? "IPv6" : "IPv4"}</li>
             </ul>
@@ -85,18 +102,18 @@ export default function PrivacyCheckPage() {
           <h2 className="text-lg font-semibold mb-3">VPN Detection</h2>
           <p className={isVPNLikely ? "text-green-400" : "text-red-400"}>
             {isVPNLikely
-              ? "VPN or datacenter IP detected."
-              : "Residential IP detected — VPN may be disabled or leaking."}
+              ? "Datacenter / VPN IP detected — VPN likely active."
+              : "Residential IP detected — VPN may be disabled."}
           </p>
         </section>
 
         <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6">
           <h2 className="text-lg font-semibold mb-3">WebRTC Leak Test</h2>
           {webrtcIPs.length === 0 ? (
-            <p className="text-green-400">No WebRTC leaks detected.</p>
+            <p className="text-green-400">No real WebRTC IP leaks detected.</p>
           ) : (
             <div>
-              <p className="text-red-400 mb-2">WebRTC is exposing local IP addresses:</p>
+              <p className="text-red-400 mb-2">WebRTC is exposing real IP addresses:</p>
               <ul className="text-sm font-mono">
                 {webrtcIPs.map(ip => <li key={ip}>{ip}</li>)}
               </ul>
@@ -108,8 +125,8 @@ export default function PrivacyCheckPage() {
           <h2 className="text-lg font-semibold mb-3">Additional Checks</h2>
           <ul className="text-sm list-disc ml-5 space-y-1">
             <li>IPv6 exposure: <b>{ipv6Detected ? "Detected" : "Not detected"}</b></li>
-            <li>Browser fingerprinting resistance: <b>Limited</b></li>
-            <li>DNS leaks: <b>Cannot be tested client-side</b></li>
+            <li>Browser fingerprinting resistance: <b>Limited (expected)</b></li>
+            <li>DNS leaks: <b>Requires backend test</b></li>
             <li>Tor exit node: <b>{org.includes("tor") ? "Possible" : "Not detected"}</b></li>
           </ul>
         </section>
