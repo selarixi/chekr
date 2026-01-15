@@ -80,17 +80,14 @@ export default function PrivacyCheckPage() {
         <h1 className="text-4xl font-bold tracking-tight mb-2">Privacy & VPN</h1>
         <p className="text-gray-400 mb-8">Instant analysis of VPN status, IP leaks, and browser privacy risks.</p>
 
-
-        <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6 shadow-xl">
-          <Link href="/text" className="block">
-            <div className="mt-6 p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition cursor-pointer">
-              <div className="text-lg font-semibold">monourl</div>
-              <div className="text-sm opacity-60">
-                Encode text into a shareable offline-safe URL
-              </div>
+        <Link href="/text" className="block mb-6">
+          <div className="mt-6 p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition cursor-pointer">
+            <div className="text-lg font-semibold">monourl</div>
+            <div className="text-sm opacity-60">
+              Encode text into a shareable offline-safe URL
             </div>
-          </Link>
-        </section>
+          </div>
+        </Link>
 
         <section className="rounded-2xl bg-gray-900/60 border border-gray-800 p-6 mb-6 shadow-xl">
           <h2 className="text-lg font-semibold mb-3">Verdict</h2>
@@ -149,6 +146,6 @@ export default function PrivacyCheckPage() {
           No data is stored. Tests run locally in your browser. Results are heuristic, not guarantees.
         </footer>
       </div>
-    </main >
+    </main>
   );
 }
